@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch.nn import MSELoss
 import torch.optim as optim
 import gymnasium as gym
 
@@ -21,6 +22,8 @@ class DQNAgent:
                 learning_rate=10e-3, 
                 batch_size= 32, 
                 use_replay_buffer= True,
+                gamma=1,
+                update_freq = 10
                 ) -> None:
         
         # Create the Q_net and the target_network
@@ -36,8 +39,18 @@ class DQNAgent:
         self.exploration = Exploration(n_actions=2)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        self.gamma = gamma
+
+        # Counters that indicate how target network is updated in method update_target_network
         self.update_counter = 0
-    
+        self.update_freq = update_freq
+
+
+    def update_target_network(self):
+        if self.update_counter % self.update_freq == 0:
+            self.target_net.load_state_dict(self.q_net.state_dict())
+
+
     def memory_sample_to_tensor(self):
         states, actions, rewards, states_next, dones = self.memory.sample_buffer(self.batch_size)  
 
@@ -45,7 +58,7 @@ class DQNAgent:
         actions = torch.Tensor(actions).to(self.device)
         rewards = torch.Tensor(rewards).to(self.device)
         states_next = torch.Tensor(states_next).to(self.device)
-        # dones = torch.Tensor(dones).to(self.device)
+        dones = torch.Tensor(dones).to(self.device)
 
         return  states, actions, rewards, states_next, dones
 
@@ -60,7 +73,6 @@ class DQNAgent:
             states, actions, rewards, states_next, dones = self.memory_sample_to_tensor()
             
             indices = np.arange(self.batch_size)
-
             q_pred = self.q_net.forward(states)[indices, actions]
             target = self.target_net.forward(states_next).max(dim=1)[0]
 
@@ -68,10 +80,15 @@ class DQNAgent:
             target[dones] = 0.0
             q_target = rewards + self.gamma*target
 
-            loss = self.q_net.loss(q_target, q_pred).to(self.device)
+            print(q_target.shape, q_pred.shape)
+            print(q_pred)
+            # loss = self.optimizer.loss(q_target, q_pred).to(self.device)
+            loss = MSELoss().to(self.device)
+            loss = loss(q_target, q_pred).to(self.device)
             loss.backward()
-            self.optimizer.step()
-            self.learn_step_counter += 1
+            # loss.backward()
+            # self.optimizer.step()
+            self.update_counter += 1
 
     def train(self):
         pass
@@ -82,15 +99,15 @@ if __name__ == '__main__':
     
     # print(env.action_space)    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+    # print(state)
     # print(f'State before: {state}, {type(state)}')
     # state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     # print(f'State after: {state}, {type(state)}')
-    print(env.step(1))
+    # print(env.step(1))
     agent = DQNAgent(n_observations=4, replay_state_shape=env.observation_space.shape, n_actions=2, batch_size=2)
     # q_vals = agent.q_net(state).detach()
-    agent.memory.store_transition([0.1,0.2,0.3,0.4],1,1,[0.1,0.2,0.3,0.4], False)
-    agent.memory.store_transition([0.0,0.9,0.3,0.2],1,1,[0.4,0.5,0.6,1.1], False)
+    agent.memory.store_transition(state,1,1,state, False)
+    agent.memory.store_transition(state,1,1,state, True)
 
     agent.learn()
     # print(agent.q_net(state).detach())
