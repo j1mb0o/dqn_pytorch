@@ -1,7 +1,7 @@
 #  Inpired from PyTorch's blog https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 
 import numpy as np 
-
+import torch
 # class ReplayBuffer:
     
 #     def __init__(self, size) -> None:
@@ -27,19 +27,19 @@ class ReplayBuffer:
     def __init__(self, max_size, input_shape):
         self.mem_size = max_size
         self.mem_cntr = 0
-        self.state_memory = np.zeros((self.mem_size, *input_shape),
-                                     dtype=np.float32)
-        self.new_state_memory = np.zeros((self.mem_size, *input_shape),
-                                         dtype=np.float32)
+        self.state_memory = torch.zeros((self.mem_size, *input_shape),
+                                     dtype=torch.float)
+        self.new_state_memory = torch.zeros((self.mem_size, *input_shape),
+                                         dtype=torch.float)
 
-        self.action_memory = np.zeros(self.mem_size, dtype=np.int64)
-        self.reward_memory = np.zeros(self.mem_size, dtype=np.float32)
-        self.terminal_memory = np.zeros(self.mem_size, dtype=bool)
+        self.action_memory = torch.zeros(self.mem_size, dtype=torch.int)
+        self.reward_memory = torch.zeros(self.mem_size, dtype=torch.float)
+        self.terminal_memory = torch.zeros(self.mem_size, dtype=torch.bool)
 
     def store_transition(self, state, action, reward, next_state, done):
         index = self.mem_cntr % self.mem_size
-        self.state_memory[index] = state
-        self.new_state_memory[index] = next_state
+        self.state_memory[index] = torch.from_numpy(state)
+        self.new_state_memory[index] = torch.from_numpy(next_state)
         self.action_memory[index] = action
         self.reward_memory[index] = reward
         self.terminal_memory[index] = done
@@ -49,7 +49,6 @@ class ReplayBuffer:
 
         max_mem = min(self.mem_cntr, self.mem_size)
         batch = np.random.choice(max_mem, batch_size, replace=False)
-
         states = self.state_memory[batch]
         actions = self.action_memory[batch]
         rewards = self.reward_memory[batch]
