@@ -8,7 +8,7 @@ from exploration import Exploration
 from replay_buffer import ReplayBuffer
 from network import DQN
 
-
+# TODO: Don't use replay buffer
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,9 +17,12 @@ class DQNAgent:
                 n_observations,
                 n_actions, 
                 replay_state_shape,
+                hidden_layers,
+                neurons,
                 replay_buffer_size=10e6, 
                 exploration_policy='egreedy', 
                 learning_rate=10e-3, 
+                epsilon=0.1,
                 batch_size= 32, 
                 use_replay_buffer= True,
                 gamma=1,
@@ -27,8 +30,9 @@ class DQNAgent:
                 ) -> None:
         
         # Create the Q_net and the target_network
-        self.q_net = DQN(n_observations, n_actions)
-        self.target_net = DQN(n_observations, n_actions)
+        self.q_net = DQN(n_observations, n_actions, n_layers_hidden=hidden_layers, n_neurons=neurons)
+        self.target_net = DQN(n_observations, n_actions, n_layers_hidden=hidden_layers, n_neurons=neurons)
+
         #  Copy the parameters of Q_net to target_net
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.optimizer = optim.SGD(self.q_net.parameters(), lr= learning_rate)
@@ -67,8 +71,7 @@ class DQNAgent:
                 return
 
             self.optimizer.zero_grad()
-            # TODO
-            # self.replace_target_network()
+            self.update_target_network()
 
             states, actions, rewards, states_next, dones = self.memory_sample_to_tensor()
             
@@ -80,35 +83,14 @@ class DQNAgent:
             target[dones] = 0.0
             q_target = rewards + self.gamma*target
 
-            print(q_target.shape, q_pred.shape)
-            print(q_pred)
+            # print(q_target.shape, q_pred.shape)
+            # print(q_pred)
             # loss = self.optimizer.loss(q_target, q_pred).to(self.device)
-            loss = MSELoss().to(self.device)
+            loss = MSELoss()
             loss = loss(q_target, q_pred).to(self.device)
+
             loss.backward()
-            # loss.backward()
-            # self.optimizer.step()
+            self.optimizer.step()
             self.update_counter += 1
 
-    def train(self):
-        pass
 
-if __name__ == '__main__':
-    env = gym.make("CartPole-v1")
-    state, info = env.reset()
-    
-    # print(env.action_space)    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # print(state)
-    # print(f'State before: {state}, {type(state)}')
-    # state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-    # print(f'State after: {state}, {type(state)}')
-    # print(env.step(1))
-    agent = DQNAgent(n_observations=4, replay_state_shape=env.observation_space.shape, n_actions=2, batch_size=2)
-    # q_vals = agent.q_net(state).detach()
-    agent.memory.store_transition(state,1,1,state, False)
-    agent.memory.store_transition(state,1,1,state, True)
-
-    agent.learn()
-    # print(agent.q_net(state).detach())
-    # print(agent.exploration.act(q_vals,epsilon=1))

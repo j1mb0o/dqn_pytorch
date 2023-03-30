@@ -1,5 +1,5 @@
 import numpy as np
-
+import torch
 
 class Exploration:
     def __init__(self, n_actions, policy = 'egreedy') -> None:
@@ -16,7 +16,7 @@ class Exploration:
                 return np.random.randint(0, self.n_actions)
             else:
                 try:
-                    return np.random.choice(np.where(x == np.max(x))[0])
+                    return np.random.choice(torch.where(x == torch.max(x))[0])
                 except:
                     return np.argmax(x)
         elif self.policy == 'softmax':
@@ -41,4 +41,4 @@ if __name__ == '__main__':
     # x.n_actions()
     # action = exp.greedy(x)
     action = exp.act(x, epsilon=0.5, temp=0.1)
-    print(action)
+    # print(action)

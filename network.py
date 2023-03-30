@@ -29,9 +29,3 @@ class DQN(nn.Module):
         return x
 
 
-if __name__ == '__main__':
-    dqn = DQN(4,2,n_layers_hidden=5)
-    print(dqn.forward(torch.Tensor([1,2,3,4])))
-    # print(dqn(torch.Tensor([1,2,3,4])))
-    for param_tensor in dqn.state_dict():
-        print(param_tensor, "\t", dqn.state_dict()[param_tensor].size())
