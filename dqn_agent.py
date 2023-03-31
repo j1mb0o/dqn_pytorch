@@ -15,9 +15,9 @@ class DQNAgent:
         self.policy_net = DQN(n_states, n_actions).to(self.device)
         self.target_net = DQN(n_states, n_actions).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
+        # self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
 
-        # self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(10000)
 
     

@@ -68,3 +68,4 @@ if __name__ == '__main__':
                 # plot_durations()
                 break
         print(f'Episode {i_episode}, reward {t}')
+    plt.plot()
