@@ -1,96 +1,83 @@
-import numpy as np
+import random
 import torch
-from torch.nn import MSELoss
+import math
 import torch.optim as optim
-import gymnasium as gym
+import torch.nn as nn
 
-from exploration import Exploration
-from replay_buffer import ReplayBuffer
-from network import DQN
-
-# TODO: Don't use replay buffer
-
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from replay_buffer import ReplayMemory
+from model import DQN
+from collections import namedtuple
 
 class DQNAgent:
-    def __init__(self,
-                n_observations,
-                n_actions, 
-                replay_state_shape,
-                hidden_layers,
-                neurons,
-                replay_buffer_size=10e6, 
-                exploration_policy='egreedy', 
-                learning_rate=10e-3, 
-                epsilon=0.1,
-                batch_size= 32, 
-                use_replay_buffer= True,
-                gamma=1,
-                update_freq = 10
-                ) -> None:
-        
-        # Create the Q_net and the target_network
-        self.q_net = DQN(n_observations, n_actions, n_layers_hidden=hidden_layers, n_neurons=neurons)
-        self.target_net = DQN(n_observations, n_actions, n_layers_hidden=hidden_layers, n_neurons=neurons)
-
-        #  Copy the parameters of Q_net to target_net
-        self.target_net.load_state_dict(self.q_net.state_dict())
-        self.optimizer = optim.SGD(self.q_net.parameters(), lr= learning_rate)
-
-        self.memory = ReplayBuffer(int(replay_buffer_size),input_shape= replay_state_shape)
-        self.batch_size = batch_size
-
-        self.exploration = Exploration(n_actions=2)
+    def __init__(self, n_states, n_actions,LR) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # pass
+        self.policy_net = DQN(n_states, n_actions).to(self.device)
+        self.target_net = DQN(n_states, n_actions).to(self.device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
 
-        self.gamma = gamma
+        # self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+        self.memory = ReplayMemory(10000)
 
-        # Counters that indicate how target network is updated in method update_target_network
-        self.update_counter = 0
-        self.update_freq = update_freq
-
-
-    def update_target_network(self):
-        if self.update_counter % self.update_freq == 0:
-            self.target_net.load_state_dict(self.q_net.state_dict())
-
-
-    def memory_sample_to_tensor(self):
-        states, actions, rewards, states_next, dones = self.memory.sample_buffer(self.batch_size)  
-
-        states = torch.Tensor(states).to(self.device)
-        actions = torch.Tensor(actions).to(self.device)
-        rewards = torch.Tensor(rewards).to(self.device)
-        states_next = torch.Tensor(states_next).to(self.device)
-        dones = torch.Tensor(dones).to(self.device)
-
-        return  states, actions, rewards, states_next, dones
-
-    def learn(self):
-            if self.memory.mem_cntr < self.batch_size:
-                return
-
-            self.optimizer.zero_grad()
-            self.update_target_network()
-
-            states, actions, rewards, states_next, dones = self.memory_sample_to_tensor()
-            
-            indices = np.arange(self.batch_size)
-            q_pred = self.q_net.forward(states)[indices, actions]
-            target = self.target_net.forward(states_next).max(dim=1)[0]
+    
+    def select_action(self, state, epsilon, env):
+        sample = random.random()
+        if sample > epsilon:
+            with torch.no_grad():
+                # t.max(1) will return the largest column value of each row.
+                # second column on max result is index of where max element was
+                # found, so we pick action with the larger expected reward.
+                return self.policy_net(state).max(1)[1].view(1, 1)
+        else:
+            return torch.tensor([[env.action_space.sample()]], device=self.device, dtype=torch.long)
 
 
-            target[dones] = 0.0
-            q_target = rewards + self.gamma*target
+    def optimize_model(self, batch_size, GAMMA):
+        if len(self.memory) < batch_size:
+            return
+        transitions = self.memory.sample(batch_size)
+        # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
+        # detailed explanation). This converts batch-array of Transitions
+        # to Transition of batch-arrays.
+        Transition = namedtuple('Transition',
+                        ('state', 'action', 'next_state', 'reward'))
 
-            # print(q_target.shape, q_pred.shape)
-            # print(q_pred)
-            # loss = self.optimizer.loss(q_target, q_pred).to(self.device)
-            loss = MSELoss()
-            loss = loss(q_target, q_pred).to(self.device)
+        batch = Transition(*zip(*transitions))
 
-            loss.backward()
-            self.optimizer.step()
-            self.update_counter += 1
+        # Compute a mask of non-final states and concatenate the batch elements
+        # (a final state would've been the one after which simulation ended)
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                            batch.next_state)), device=self.device, dtype=torch.bool)
+        non_final_next_states = torch.cat([s for s in batch.next_state
+                                                    if s is not None])
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
 
+        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+        # columns of actions taken. These are the actions which would've been taken
+        # for each batch state according to policy_net
+        state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
+        # Compute V(s_{t+1}) for all next states.
+        # Expected values of actions for non_final_next_states are computed based
+        # on the "older" target_net; selecting their best reward with max(1)[0].
+        # This is merged based on the mask, such that we'll have either the expected
+        # state value or 0 in case the state was final.
+        next_state_values = torch.zeros(batch_size, device=self.device)
+        with torch.no_grad():
+            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
+        # Compute the expected Q values
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+
+        # Compute Huber loss
+        criterion = nn.MSELoss()
+        loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+
+        # Optimize the model
+        self.optimizer.zero_grad()
+        loss.backward()
+        # In-place gradient clipping
+        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
+        self.optimizer.step()
