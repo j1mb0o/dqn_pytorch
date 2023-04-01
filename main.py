@@ -30,7 +30,7 @@ if __name__ == '__main__':
     agent  = DQNAgent(len(state), n_actions,LR)
 
     num_episodes = 500
-
+    episode_durations = []
     for i_episode in range(num_episodes):
     # Initialize the environment and get it's state
         state, info = env.reset()
@@ -62,10 +62,11 @@ if __name__ == '__main__':
             for key in policy_net_state_dict:
                 target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
             agent.target_net.load_state_dict(target_net_state_dict)
-
+            # agent.target_net.load_state_dict(policy_net_state_dict)
             if done:
-                # episode_durations.append(t + 1)
+                episode_durations.append(t + 1)
                 # plot_durations()
                 break
         print(f'Episode {i_episode}, reward {t}')
-    plt.plot()
+    plt.plot(episode_durations)
+    plt.show()
