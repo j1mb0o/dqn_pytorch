@@ -108,11 +108,11 @@ if __name__ == '__main__':
                 duration += 1
                 # if done:
             episode_durations.append(duration)
-            print(f'Run{run},episode {i_episode}, reward {duration}')
+            print(f'Run {run},episode {i_episode}, reward {duration}')
 
         ep_to_export.append(episode_durations)
     # plt.plot(episode_durations)
     # plt.show()
     export = np.array(ep_to_export)
     export = np.mean(export, axis=0)
-    np.save(f'batch_size_{batch_size}_epsilon_{epsilon}_exploration_p_{policy}_gamma_{gamma}_learning_rate_{lr}_memory_size_{memory_size}_no_replay_buffer_{args.no_replay_buffer}_no_target_network_{args.no_target_network}_target_update_{args.target_update}_temperature_{temperature}.npy',np.array(episode_durations))
+    np.save(f'batch_size_{batch_size}_epsilon_{epsilon}_exploration_p_{policy}_learning_rate_{lr}__no_replay_buffer_{args.no_replay_buffer}_no_target_network_{args.no_target_network}_temperature_{temperature}.npy',np.array(episode_durations))
