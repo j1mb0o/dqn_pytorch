@@ -59,53 +59,59 @@ if __name__ == '__main__':
     if args.no_replay_buffer:
         batch_size = 1
         memory_size = 1
-
+    ep_to_export = []
 
     print('Starting...')
-    for i_episode in range(num_episodes):
-    # Initialize the environment and get it's state
-        state, info = env.reset()
-        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-        # for t in count():
-        duration = 0
-        done = False
-        while not done:
-            action = agent.select_action(state=state,epsilon=0.1,env=env,policy=policy,temp=temperature)
-            observation, reward, terminated, truncated, _ = env.step(action.item())
-            reward = torch.tensor([reward], device=device)
-            done = terminated or truncated
+    for run in range(5):
+        episode_durations.clear()
+        for i_episode in range(num_episodes):
+        # Initialize the environment and get it's state
+            state, info = env.reset()
+            state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+            # for t in count():
+            duration = 0
+            done = False
+            
+            while not done:
+                action = agent.select_action(state=state,epsilon=0.1,env=env,policy=policy,temp=temperature)
+                observation, reward, terminated, truncated, _ = env.step(action.item())
+                reward = torch.tensor([reward], device=device)
+                done = terminated or truncated
 
-            if terminated:
-                next_state = None
-            else:
-                next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+                if terminated:
+                    next_state = None
+                else:
+                    next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-            # Store the transition in memory
-            agent.memory.push(state, action, next_state, reward)
+                # Store the transition in memory
+                agent.memory.push(state, action, next_state, reward)
 
-            # Move to the next state
-            state = next_state
+                # Move to the next state
+                state = next_state
 
-            # Perform one step of the optimization (on the policy network)
-            agent.optimize_model(batch_size=batch_size, GAMMA=gamma)
+                # Perform one step of the optimization (on the policy network)
+                agent.optimize_model(batch_size=batch_size, GAMMA=gamma)
 
-            # Soft update of the target network's weights
-            # θ′ ← τ θ + (1 −τ )θ′
-            target_net_state_dict = agent.target_net.state_dict()
-            policy_net_state_dict = agent.policy_net.state_dict()
+                # Soft update of the target network's weights
+                # θ′ ← τ θ + (1 −τ )θ′
+                target_net_state_dict = agent.target_net.state_dict()
+                policy_net_state_dict = agent.policy_net.state_dict()
 
-            if args.no_target_network:
-                agent.target_net.load_state_dict(policy_net_state_dict)
-            else:
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+                if args.no_target_network:
+                    agent.target_net.load_state_dict(policy_net_state_dict)
+                else:
+                    # https://ai.stackexchange.com/questions/21485/how-and-when-should-we-update-the-q-target-in-deep-q-learning
+                    for key in policy_net_state_dict:
+                        target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
 
-            duration += 1
-            # if done:
-        episode_durations.append(duration)
+                duration += 1
+                # if done:
+            episode_durations.append(duration)
+            print(f'Run{run},episode {i_episode}, reward {duration}')
 
-        print(f'Episode {i_episode}, reward {duration}')
+        ep_to_export.append(episode_durations)
     # plt.plot(episode_durations)
     # plt.show()
-
+    export = np.array(ep_to_export)
+    export = np.mean(export, axis=0)
     np.save(f'batch_size_{batch_size}_epsilon_{epsilon}_exploration_p_{policy}_gamma_{gamma}_learning_rate_{lr}_memory_size_{memory_size}_no_replay_buffer_{args.no_replay_buffer}_no_target_network_{args.no_target_network}_target_update_{args.target_update}_temperature_{temperature}.npy',np.array(episode_durations))
