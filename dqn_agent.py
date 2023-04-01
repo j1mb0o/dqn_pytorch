@@ -9,7 +9,7 @@ from model import DQN
 from collections import namedtuple
 
 class DQNAgent:
-    def __init__(self, n_states, n_actions,LR) -> None:
+    def __init__(self, n_states, n_actions,LR, memory_size) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # pass
         self.policy_net = DQN(n_states, n_actions).to(self.device)
@@ -18,19 +18,28 @@ class DQNAgent:
         # self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
 
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
-        self.memory = ReplayMemory(10000)
+        self.memory = ReplayMemory(memory_size)
 
     
-    def select_action(self, state, epsilon, env):
-        sample = random.random()
-        if sample > epsilon:
-            with torch.no_grad():
-                # t.max(1) will return the largest column value of each row.
-                # second column on max result is index of where max element was
-                # found, so we pick action with the larger expected reward.
-                return self.policy_net(state).max(1)[1].view(1, 1)
+    def select_action(self, state, epsilon, temp,env,policy):
+        if policy == 'egreedy':
+            sample = random.random()
+            if sample > epsilon:
+                with torch.no_grad():
+                    # t.max(1) will return the largest column value of each row.
+                    # second column on max result is index of where max element was
+                    # found, so we pick action with the larger expected reward.
+                    return self.policy_net(state).max(1)[1].view(1, 1)
+            else:
+                return torch.tensor([[env.action_space.sample()]], device=self.device, dtype=torch.long)
         else:
-            return torch.tensor([[env.action_space.sample()]], device=self.device, dtype=torch.long)
+            with torch.no_grad():
+                x = self.policy_net(state)[0]/temp
+                z = x - self.policy_net(state).max(1)[0]
+                softmax = torch.exp(z) / torch.sum(torch.exp(z))
+                
+                return torch.multinomial(softmax,1).view(1,1)
+
 
 
     def optimize_model(self, batch_size, GAMMA):
