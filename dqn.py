@@ -92,8 +92,7 @@ if __name__ == '__main__':
                 # Perform one step of the optimization (on the policy network)
                 agent.optimize_model(batch_size=batch_size, GAMMA=gamma)
 
-                # Soft update of the target network's weights
-                # θ′ ← τ θ + (1 −τ )θ′
+                
                 target_net_state_dict = agent.target_net.state_dict()
                 policy_net_state_dict = agent.policy_net.state_dict()
 
@@ -101,6 +100,8 @@ if __name__ == '__main__':
                     agent.target_net.load_state_dict(policy_net_state_dict)
                 else:
                     # https://ai.stackexchange.com/questions/21485/how-and-when-should-we-update-the-q-target-in-deep-q-learning
+                    # Soft update of the target network's weights
+                    # θ′ ← τ θ + (1 −τ )θ′
                     for key in policy_net_state_dict:
                         target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
 
