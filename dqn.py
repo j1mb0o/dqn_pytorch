@@ -50,8 +50,7 @@ if __name__ == '__main__':
     temperature = args.temperature
 
     n_actions = env.action_space.n
-    state, info = env.reset()
-    agent  = DQNAgent(len(state), n_actions,lr, memory_size=memory_size)
+    
     target_net_update_cnt = 0
     num_episodes = 500
     episode_durations = []
@@ -63,6 +62,9 @@ if __name__ == '__main__':
 
     print('Starting...')
     for run in range(5):
+        state, info = env.reset()
+        agent  = DQNAgent(len(state), n_actions,lr, memory_size=memory_size)
+
         episode_durations.clear()
         for i_episode in range(num_episodes):
         # Initialize the environment and get it's state
