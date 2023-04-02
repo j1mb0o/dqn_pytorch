@@ -44,10 +44,10 @@ class DQNAgent:
                 
         else:
             with torch.no_grad():
-                x = self.policy_net(state)[0]/temp
-                z = x - self.policy_net(state).max(1)[0]
-                softmax = torch.exp(z) / torch.sum(torch.exp(z))
-                
+                x = self.policy_net(state)[0]
+                # z = x - self.policy_net(state).max(1)[0]
+                # softmax = torch.exp(z) / torch.sum(torch.exp(z))
+                softmax = torch.softmax(x,dim=0)
                 return torch.multinomial(softmax,1).view(1,1)
 
 

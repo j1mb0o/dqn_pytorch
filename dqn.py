@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     n_actions = env.action_space.n
     
-    num_episodes = 800
+    num_episodes = 500
     episode_durations = []
 
     if args.no_replay_buffer:
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         memory_size = 1
     ep_to_export = []
 
-    for run in range(5):
+    for run in range(3):
         state, info = env.reset()
         agent  = DQNAgent(len(state), n_actions,lr, memory_size=memory_size, 
                           optimizer=args.optimizer, neurons=args.num_of_neurons,
