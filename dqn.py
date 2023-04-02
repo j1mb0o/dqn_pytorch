@@ -59,7 +59,9 @@ if __name__ == '__main__':
 
     for run in range(5):
         state, info = env.reset()
-        agent  = DQNAgent(len(state), n_actions,lr, memory_size=memory_size, )
+        agent  = DQNAgent(len(state), n_actions,lr, memory_size=memory_size, 
+                          optimizer=args.optimizer, neurons=args.num_of_neurons,
+                          layers=args.number_of_layers)
 
         episode_durations.clear()
         for i_episode in range(num_episodes):
