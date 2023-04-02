@@ -5,19 +5,30 @@ import torch.optim as optim
 import torch.nn as nn
 
 from replay_buffer import ReplayMemory
-from model import DQN
+from model import DQN3L, DQN5L, DQN7L
 from collections import namedtuple
 
 class DQNAgent:
-    def __init__(self, n_states, n_actions,LR, memory_size) -> None:
+    def __init__(self, n_states, n_actions,LR, memory_size, layers, neurons, optimizer) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # pass
-        self.policy_net = DQN(n_states, n_actions).to(self.device)
-        self.target_net = DQN(n_states, n_actions).to(self.device)
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        # self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
+        if layers == 3:
+            self.policy_net = DQN3L(n_states, n_actions, neurons).to(self.device)
+            self.target_net = DQN3L(n_states, n_actions, neurons).to(self.device)
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+        elif layers == 5:
+            self.policy_net = DQN5L(n_states, n_actions, neurons).to(self.device)
+            self.target_net = DQN5L(n_states, n_actions, neurons).to(self.device)
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+        else:
+            self.policy_net = DQN7L(n_states, n_actions, neurons).to(self.device)
+            self.target_net = DQN7L(n_states, n_actions, neurons).to(self.device)
+            self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+        if optimizer == 'sgd':
+            self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
+        else:
+            self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(memory_size)
 
     
@@ -69,15 +80,10 @@ class DQNAgent:
         # for each batch state according to policy_net
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
-        # Compute V(s_{t+1}) for all next states.
-        # Expected values of actions for non_final_next_states are computed based
-        # on the "older" target_net; selecting their best reward with max(1)[0].
-        # This is merged based on the mask, such that we'll have either the expected
-        # state value or 0 in case the state was final.
         next_state_values = torch.zeros(batch_size, device=self.device)
         with torch.no_grad():
-            # next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
-            next_state_values[non_final_mask] = self.policy_net(non_final_next_states).max(1)[0]
+            next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
+            # next_state_values[non_final_mask] = self.policy_net(non_final_next_states).max(1)[0]
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
