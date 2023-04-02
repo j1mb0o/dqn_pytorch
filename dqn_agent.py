@@ -9,7 +9,7 @@ from model import DQN3L, DQN5L, DQN7L
 from collections import namedtuple
 
 class DQNAgent:
-    def __init__(self, n_states, n_actions,LR, memory_size, layers, neurons, optimizer) -> None:
+    def __init__(self, n_states, n_actions,LR, memory_size, layers=3, neurons=128, optimizer='adam') -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # pass
         if layers == 3:
@@ -28,7 +28,7 @@ class DQNAgent:
         if optimizer == 'sgd':
             self.optimizer = optim.SGD(self.policy_net.parameters(), lr=LR)
         else:
-            self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=LR, amsgrad=True)
+            self.optimizer = optim.Adam(self.policy_net.parameters(), lr=LR, amsgrad=True)
         self.memory = ReplayMemory(memory_size)
 
     
@@ -37,12 +37,11 @@ class DQNAgent:
             sample = random.random()
             if sample > epsilon:
                 with torch.no_grad():
-                    # t.max(1) will return the largest column value of each row.
-                    # second column on max result is index of where max element was
-                    # found, so we pick action with the larger expected reward.
+
                     return self.policy_net(state).max(1)[1].view(1, 1)
             else:
                 return torch.tensor([[env.action_space.sample()]], device=self.device, dtype=torch.long)
+                
         else:
             with torch.no_grad():
                 x = self.policy_net(state)[0]/temp

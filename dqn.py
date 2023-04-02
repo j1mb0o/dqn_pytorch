@@ -103,7 +103,9 @@ if __name__ == '__main__':
                     # Soft update of the target network's weights
                     # θ′ ← τ θ + (1 −τ )θ′
                     for key in policy_net_state_dict:
-                        target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+                        target_net_state_dict[key] = TAU*policy_net_state_dict[key] + (1-TAU)*target_net_state_dict[key]
+                    agent.target_net.load_state_dict(target_net_state_dict)
+
 
                 duration += 1
                 # if done:
