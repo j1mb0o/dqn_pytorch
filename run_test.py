@@ -21,7 +21,7 @@ if __name__ == '__main__':
     input(f'You will run the following tests {lr=} and then {batch_size=}, press enter to continue')
 
     for i in lr:
-        os.system(f'python3 dqn.py --learning_rate {i}' )
+        os.system(f'python3 dqn.py --learning-rate {i}' )
 
     for i in batch_size:
-        os.system(f'python3 dqn.py --batch_size {i}' )
+        os.system(f'python3 dqn.py --batch-size {i}' )
