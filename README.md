@@ -4,7 +4,7 @@
 
 
 
-In order to run en experiment you should execute the python dqn.py file and pass the arguments from the terminal
+In order to run en experiment you should execute the python `dqn.py` file and pass the arguments from the terminal
 
 An example with each parameter through the terminal
 ```bash
@@ -14,5 +14,5 @@ An example with each parameter through the terminal
     --numpy-filename numpy_filename_to_save_results
 
 ```
-Note: that each argument is optional except the --numpy-filename
+Note: that each argument is optional except the `--numpy-filename`
 
